@@ -11,6 +11,9 @@ const EXPECTED_TOOLS = [
   "api_request",
   "get_adventure",
   "get_adventure_requirements",
+  "get_award_requirements",
+  "get_merit_badge",
+  "get_merit_badge_requirements",
   "get_my_scout",
   "get_organization_profile",
   "get_parent_guardian_invitation",
@@ -28,6 +31,7 @@ const EXPECTED_TOOLS = [
   "get_youth_adventures",
   "get_youth_awards",
   "get_youth_leadership_history",
+  "get_youth_merit_badges",
   "get_youth_ranks",
   "list_activities",
   "list_advancement_comments",
@@ -35,6 +39,8 @@ const EXPECTED_TOOLS = [
   "list_awards",
   "list_membership_registrations",
   "list_merit_badges",
+  "list_organization_adults",
+  "list_organization_youths",
   "list_ranks",
   "list_ss_electives",
   "list_unit_events",
@@ -56,10 +62,10 @@ const TOOLS_WITH_OUTPUT_SCHEMA = new Set(["whoami", "api_request"]);
 describe("tool registry", () => {
   const tools = listRegisteredTools();
 
-  it("registers all 32 expected tools", () => {
+  it("registers all 38 expected tools", () => {
     const names = tools.map((t) => t.name).sort();
     assert.deepEqual(names, [...EXPECTED_TOOLS].sort());
-    assert.equal(names.length, 32);
+    assert.equal(names.length, 38);
   });
 
   it("every tool has no redundant `scouting_` prefix and has a description + inputSchema", () => {

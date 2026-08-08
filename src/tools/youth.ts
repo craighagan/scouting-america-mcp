@@ -105,6 +105,29 @@ registerTool(
 );
 
 registerTool(
+  "get_youth_merit_badges",
+  {
+    description:
+      "Returns a youth's merit badge progress (started and completed badges). `userId` defaults to the authenticated user.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        userId: { type: ["string", "number"] },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true },
+  },
+  async (args, client) => {
+    const userId = await resolveUserId(args);
+    const data = await client.get(
+      `/advancements/v2/youth/${userId}/meritBadges`,
+    );
+    return createToolResponse(data);
+  },
+);
+
+registerTool(
   "get_youth_advancement_requirements",
   {
     description:
