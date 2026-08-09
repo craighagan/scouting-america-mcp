@@ -128,6 +128,29 @@ registerTool(
 );
 
 registerTool(
+  "get_youth_ss_electives",
+  {
+    description:
+      "Returns a youth's Sea Scout elective progress. `userId` defaults to the authenticated user.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        userId: { type: ["string", "number"] },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true },
+  },
+  async (args, client) => {
+    const userId = await resolveUserId(args);
+    const data = await client.get(
+      `/advancements/v2/youth/${userId}/ssElectives`,
+    );
+    return createToolResponse(data);
+  },
+);
+
+registerTool(
   "get_youth_advancement_requirements",
   {
     description:
