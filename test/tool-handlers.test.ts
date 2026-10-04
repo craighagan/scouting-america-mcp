@@ -339,6 +339,28 @@ describe("search tool handlers", () => {
     const api = getApiCalls(calls)[0];
     assert.match(api.url, /\/counselors\/search/);
   });
+
+  it("search_merit_badge_counselors sends only the provided fields", async () => {
+    const calls = installFetchMock();
+    await findTool("search_merit_badge_counselors").handler(
+      { meritBadgeId: 20, lastName: "Smith" },
+      await createMockClient(),
+    );
+    // zipCode/radius were omitted, so their conditional branches must not add keys.
+    assert.deepEqual(getApiCalls(calls)[0].body, { meritBadgeId: 20, lastName: "Smith" });
+  });
+
+  it("search tools omit every unprovided field (empty body when no args)", async () => {
+    for (const name of ["search_units", "search_camps", "search_orgs_nearby"]) {
+      const calls = installFetchMock();
+      await findTool(name).handler({}, await createMockClient());
+      assert.deepEqual(
+        getApiCalls(calls)[0].body,
+        {},
+        `${name} with no args should POST an empty body`,
+      );
+    }
+  });
 });
 
 describe("MBC tool handlers", () => {
@@ -410,5 +432,201 @@ describe("meta tool handlers", () => {
     const api = getApiCalls(calls);
     assert.equal(api.length, 1);
     assert.match(api[0].url, /\/test\/path/);
+  });
+});
+
+
+describe("adventure requirement tool handlers", () => {
+  it("get_adventure calls GET /advancements/v2/adventures/:id", async () => {
+    const calls = installFetchMock();
+    await findTool("get_adventure").handler({ adventureId: 10 }, await createMockClient());
+    assert.match(getApiCalls(calls)[0].url, /\/advancements\/v2\/adventures\/10/);
+  });
+
+  it("get_adventure_requirements uses the v1 path and passes versionId", async () => {
+    const calls = installFetchMock();
+    await findTool("get_adventure_requirements").handler(
+      { adventureId: 10, versionId: 4 },
+      await createMockClient(),
+    );
+    const url = getApiCalls(calls)[0].url;
+    // Intentionally v1 (no /v2/) even though get_adventure is v2.
+    assert.match(url, /\/advancements\/adventures\/10\/requirements/);
+    assert.doesNotMatch(url, /\/v2\//);
+    assert.match(url, /versionId=4/);
+  });
+});
+
+describe("remaining youth tool handlers", () => {
+  it("get_youth_adventures calls correct path", async () => {
+    const calls = installFetchMock();
+    await findTool("get_youth_adventures").handler({ userId: 7 }, await createMockClient());
+    assert.match(getApiCalls(calls)[0].url, /\/youth\/7\/adventures/);
+  });
+
+  it("get_youth_awards calls correct path", async () => {
+    const calls = installFetchMock();
+    await findTool("get_youth_awards").handler({ userId: 7 }, await createMockClient());
+    assert.match(getApiCalls(calls)[0].url, /\/youth\/7\/awards/);
+  });
+
+  it("get_youth_leadership_history defaults userId and passes summary query", async () => {
+    const calls = installFetchMock();
+    await findTool("get_youth_leadership_history").handler(
+      { summary: true },
+      await createMockClient(),
+    );
+    const url = getApiCalls(calls)[0].url;
+    assert.match(url, /\/advancements\/youth\/42\/leadershipPositionHistory/);
+    assert.match(url, /summary=true/);
+  });
+
+  it("get_user_activity_summary calls correct path", async () => {
+    const calls = installFetchMock();
+    await findTool("get_user_activity_summary").handler({ userId: 7 }, await createMockClient());
+    assert.match(getApiCalls(calls)[0].url, /\/advancements\/v2\/7\/userActivitySummary/);
+  });
+
+  it("get_payment_logs passes unitId as query and defaults userId", async () => {
+    const calls = installFetchMock();
+    await findTool("get_payment_logs").handler({ unitId: 85253 }, await createMockClient());
+    const url = getApiCalls(calls)[0].url;
+    assert.match(url, /\/advancements\/42\/paymentLogs/);
+    assert.match(url, /unitId=85253/);
+  });
+});
+
+describe("remaining person tool handlers", () => {
+  const GUID = "ABC-GUID";
+
+  it("get_person_relationships GETs /persons/v2/:guid/relationships", async () => {
+    const calls = installFetchMock();
+    await findTool("get_person_relationships").handler({ personGuid: GUID }, await createMockClient());
+    assert.match(getApiCalls(calls)[0].url, /\/persons\/v2\/ABC-GUID\/relationships/);
+  });
+
+  it("get_person_role_types GETs /persons/:guid/roleTypes", async () => {
+    const calls = installFetchMock();
+    await findTool("get_person_role_types").handler({ personGuid: GUID }, await createMockClient());
+    assert.match(getApiCalls(calls)[0].url, /\/persons\/ABC-GUID\/roleTypes/);
+  });
+
+  it("get_person_subscriptions GETs /persons/:guid/subscriptions", async () => {
+    const calls = installFetchMock();
+    await findTool("get_person_subscriptions").handler({ personGuid: GUID }, await createMockClient());
+    assert.match(getApiCalls(calls)[0].url, /\/persons\/ABC-GUID\/subscriptions/);
+  });
+
+  it("get_person_renewal_relationships GETs /persons/:guid/renewalRelationships", async () => {
+    const calls = installFetchMock();
+    await findTool("get_person_renewal_relationships").handler({ personGuid: GUID }, await createMockClient());
+    assert.match(getApiCalls(calls)[0].url, /\/persons\/ABC-GUID\/renewalRelationships/);
+  });
+
+  it("get_person_ypt_training GETs /persons/v2/:guid/trainings/ypt", async () => {
+    const calls = installFetchMock();
+    await findTool("get_person_ypt_training").handler({ personGuid: GUID }, await createMockClient());
+    assert.match(getApiCalls(calls)[0].url, /\/persons\/v2\/ABC-GUID\/trainings\/ypt/);
+  });
+
+  it("get_parent_guardian_invitation GETs /persons/v2/:guid/parentGuardianInvitation", async () => {
+    const calls = installFetchMock();
+    await findTool("get_parent_guardian_invitation").handler({ personGuid: GUID }, await createMockClient());
+    assert.match(getApiCalls(calls)[0].url, /\/persons\/v2\/ABC-GUID\/parentGuardianInvitation/);
+  });
+
+  it("list_membership_registrations POSTs with a default status filter", async () => {
+    const calls = installFetchMock();
+    await findTool("list_membership_registrations").handler({ personGuid: GUID }, await createMockClient());
+    const api = getApiCalls(calls)[0];
+    assert.equal(api.method, "POST");
+    assert.match(api.url, /\/persons\/v2\/ABC-GUID\/membershipRegistrations/);
+    assert.deepEqual((api.body as Record<string, unknown>).status, ["current"]);
+  });
+});
+
+describe("events tool handlers", () => {
+  it("list_unit_events POSTs, coerces unitId to a number, and sets swCache query", async () => {
+    const calls = installFetchMock();
+    await findTool("list_unit_events").handler(
+      { unitId: "85253", fromDate: "2026-01-01", toDate: "2026-12-31" },
+      await createMockClient(),
+    );
+    const api = getApiCalls(calls)[0];
+    assert.equal(api.method, "POST");
+    assert.match(api.url, /\/advancements\/events/);
+    assert.match(api.url, /swCache=true/);
+    const body = api.body as Record<string, unknown>;
+    assert.equal(body.unitId, 85253); // coerced from string to number
+    assert.equal(body.fromDate, "2026-01-01");
+    assert.equal(body.showDLEvents, false);
+  });
+
+  it("list_activities POSTs with pagination in the query and filter in the body", async () => {
+    const calls = installFetchMock();
+    await findTool("list_activities").handler(
+      { hostOrganizationGuid: "ORG-1", startDate: "2026-01-01", endDate: "2026-06-30", page: 2 },
+      await createMockClient(),
+    );
+    const api = getApiCalls(calls)[0];
+    assert.equal(api.method, "POST");
+    assert.match(api.url, /\/advancements\/v2\/activities/);
+    assert.match(api.url, /page=2/);
+    assert.match(api.url, /perPage=25/);
+    const body = api.body as Record<string, unknown>;
+    assert.equal(body.hostOrganizationGuid, "ORG-1");
+    assert.equal(body.includeActivities, "both");
+  });
+
+  it("list_advancement_comments POSTs to the user comments path and coerces ids", async () => {
+    const calls = installFetchMock();
+    await findTool("list_advancement_comments").handler(
+      { userId: 7, advancementId: "20", advancementType: "meritBadges", versionId: "3" },
+      await createMockClient(),
+    );
+    const api = getApiCalls(calls)[0];
+    assert.equal(api.method, "POST");
+    assert.match(api.url, /\/advancements\/v2\/users\/7\/comments/);
+    const body = api.body as Record<string, unknown>;
+    assert.equal(body.advancementId, 20); // coerced
+    assert.equal(body.versionId, 3); // coerced
+    assert.equal(body.advancementType, "meritBadges");
+  });
+
+  it("list_advancement_comments defaults userId to the authenticated user", async () => {
+    const calls = installFetchMock();
+    await findTool("list_advancement_comments").handler(
+      { advancementId: 20, advancementType: "ranks", versionId: 1 },
+      await createMockClient(),
+    );
+    assert.match(getApiCalls(calls)[0].url, /\/advancements\/v2\/users\/42\/comments/);
+  });
+});
+
+describe("lookup tool handler", () => {
+  it("maps a valid category to /lookups/<category>", async () => {
+    const calls = installFetchMock();
+    await findTool("lookup").handler({ category: "address/states" }, await createMockClient());
+    assert.match(getApiCalls(calls)[0].url, /\/lookups\/address\/states/);
+  });
+
+  it("rejects an unsupported category without calling the API", async () => {
+    const calls = installFetchMock();
+    await assert.rejects(
+      findTool("lookup").handler({ category: "not/a/category" }, await createMockClient()),
+      /Unsupported lookup category/,
+    );
+    assert.equal(getApiCalls(calls).length, 0);
+  });
+});
+
+describe("get_organization_profile handler", () => {
+  it("GETs /organizations/v2/:guid/profile", async () => {
+    const calls = installFetchMock();
+    await findTool("get_organization_profile").handler(
+      { organizationGuid: "ORG-1" },
+      await createMockClient(),
+    );
+    assert.match(getApiCalls(calls)[0].url, /\/organizations\/v2\/ORG-1\/profile/);
   });
 });
