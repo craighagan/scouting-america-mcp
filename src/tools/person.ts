@@ -1,6 +1,6 @@
-import { getCurrentUserId } from "../session.js";
 import { createToolResponse } from "./responses.js";
 import { registerTool } from "./toolRegistry.js";
+import { resolveUserId } from "./userId.js";
 
 registerTool(
   "search_relationships",
@@ -53,11 +53,7 @@ registerTool(
   async (args, client) => {
     const body: Record<string, unknown> = {};
     if (args.organizationGuid !== undefined) body.organizationGuid = args.organizationGuid;
-    if (args.userId !== undefined) {
-      body.userId = args.userId;
-    } else {
-      body.userId = await getCurrentUserId();
-    }
+    body.userId = await resolveUserId(args);
     const data = await client.postFilter("/advancements/advancementHistory", body);
     return createToolResponse(data);
   },
@@ -288,9 +284,7 @@ registerTool(
     annotations: { readOnlyHint: true },
   },
   async (args, client) => {
-    const userId =
-      (args.userId as string | number | undefined) ??
-      (await getCurrentUserId());
+    const userId = await resolveUserId(args);
     const data = await client.get(`/persons/${userId}/myScout`);
     return createToolResponse(data);
   },

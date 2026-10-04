@@ -350,6 +350,27 @@ describe("search tool handlers", () => {
     assert.deepEqual(getApiCalls(calls)[0].body, { meritBadgeId: 20, lastName: "Smith" });
   });
 
+  it("search_merit_badge_counselors passes memberId + email through", async () => {
+    const calls = installFetchMock();
+    await findTool("search_merit_badge_counselors").handler(
+      { memberId: 12408161, email: "mbc@example.com" },
+      await createMockClient(),
+    );
+    assert.deepEqual(getApiCalls(calls)[0].body, {
+      memberId: 12408161,
+      email: "mbc@example.com",
+    });
+  });
+
+  it("search_merit_badge_counselors rejects an empty filter without calling the API", async () => {
+    const calls = installFetchMock();
+    await assert.rejects(
+      findTool("search_merit_badge_counselors").handler({}, await createMockClient()),
+      /requires at least one filter/,
+    );
+    assert.equal(getApiCalls(calls).length, 0);
+  });
+
   it("search tools omit every unprovided field (empty body when no args)", async () => {
     for (const name of ["search_units", "search_camps", "search_orgs_nearby"]) {
       const calls = installFetchMock();
@@ -433,6 +454,60 @@ describe("meta tool handlers", () => {
     assert.equal(api.length, 1);
     assert.match(api[0].url, /\/test\/path/);
   });
+});
+
+describe("userId resolution contract (shared resolveUserId)", () => {
+  // These tools all default userId via the shared resolver: omitted -> me,
+  // explicitly empty -> clear local error, provided -> used verbatim.
+  const DEFAULTING_TOOLS: Array<{ name: string; args: Record<string, unknown> }> = [
+    { name: "get_youth_ranks", args: {} },
+    { name: "get_my_scout", args: {} },
+    { name: "list_advancement_comments", args: { advancementId: 20, advancementType: "ranks", versionId: 1 } },
+    { name: "get_advancement_history", args: {} },
+  ];
+
+  for (const { name, args } of DEFAULTING_TOOLS) {
+    it(`${name} defaults to the authenticated user (42) when userId is omitted`, async () => {
+      const calls = installFetchMock();
+      await findTool(name).handler(args, await createMockClient());
+      const api = getApiCalls(calls)[0];
+      // userId 42 shows up either in the path or the POST body depending on the tool.
+      const inPath = /(?:\/|users\/|persons\/)42(?:\/|$|\?)/.test(api.url);
+      const inBody =
+        api.body !== undefined &&
+        (api.body as Record<string, unknown>).userId === "42";
+      assert.ok(inPath || inBody, `${name} should resolve userId to 42; url=${api.url} body=${JSON.stringify(api.body)}`);
+    });
+
+    it(`${name} throws on an empty-string userId without calling the API`, async () => {
+      const calls = installFetchMock();
+      await assert.rejects(
+        findTool(name).handler({ ...args, userId: "" }, await createMockClient()),
+        /userId was provided but empty/,
+      );
+      assert.equal(getApiCalls(calls).length, 0);
+    });
+
+    it(`${name} throws on a whitespace-only userId without calling the API`, async () => {
+      const calls = installFetchMock();
+      await assert.rejects(
+        findTool(name).handler({ ...args, userId: "   " }, await createMockClient()),
+        /userId was provided but empty/,
+      );
+      assert.equal(getApiCalls(calls).length, 0);
+    });
+
+    it(`${name} uses a provided numeric userId`, async () => {
+      const calls = installFetchMock();
+      await findTool(name).handler({ ...args, userId: 99 }, await createMockClient());
+      const api = getApiCalls(calls)[0];
+      const inPath = /99/.test(api.url);
+      const inBody =
+        api.body !== undefined &&
+        (api.body as Record<string, unknown>).userId === "99";
+      assert.ok(inPath || inBody, `${name} should use userId 99; url=${api.url} body=${JSON.stringify(api.body)}`);
+    });
+  }
 });
 
 

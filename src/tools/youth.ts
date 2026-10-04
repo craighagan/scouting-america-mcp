@@ -1,14 +1,6 @@
-import { getCurrentUserId } from "../session.js";
 import { createToolResponse } from "./responses.js";
 import { registerTool } from "./toolRegistry.js";
-
-async function resolveUserId(args: Record<string, unknown>): Promise<string> {
-  const provided = args.userId;
-  if (provided !== undefined && provided !== null && provided !== "") {
-    return String(provided);
-  }
-  return getCurrentUserId();
-}
+import { resolveUserId } from "./userId.js";
 
 registerTool(
   "get_youth_leadership_history",

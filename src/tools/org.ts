@@ -202,17 +202,17 @@ registerTool(
   "search_merit_badge_counselors",
   {
     description:
-      "Search for merit badge counselors by merit badge ID, location, or name. Returns counselor profiles with contact info and badges they counsel. POST-as-filter.",
+      "Search for merit badge counselors. The upstream requires a valid filter combination — typically memberId + email, OR lastName + zipCode (optionally with radius). meritBadgeId narrows results to counselors for that badge. Supplying no criteria is rejected locally. POST-as-filter.",
     inputSchema: {
       type: "object",
       properties: {
         meritBadgeId: {
           type: ["string", "number"],
-          description: "Numeric merit badge ID to search counselors for.",
+          description: "Numeric merit badge ID to narrow counselors to one badge.",
         },
         zipCode: {
           type: "string",
-          description: "ZIP code for geographic search.",
+          description: "ZIP code for geographic search (pair with lastName).",
         },
         radius: {
           type: "number",
@@ -220,7 +220,15 @@ registerTool(
         },
         lastName: {
           type: "string",
-          description: "Counselor last name to search by.",
+          description: "Counselor last name (pair with zipCode).",
+        },
+        email: {
+          type: "string",
+          description: "Counselor email (pair with memberId).",
+        },
+        memberId: {
+          type: ["string", "number"],
+          description: "Counselor member ID (pair with email).",
         },
       },
       additionalProperties: false,
@@ -233,6 +241,14 @@ registerTool(
     if (args.zipCode !== undefined) body.zipCode = args.zipCode;
     if (args.radius !== undefined) body.radius = args.radius;
     if (args.lastName !== undefined) body.lastName = args.lastName;
+    if (args.email !== undefined) body.email = args.email;
+    if (args.memberId !== undefined) body.memberId = args.memberId;
+    if (Object.keys(body).length === 0) {
+      throw new Error(
+        "search_merit_badge_counselors requires at least one filter " +
+          "(e.g. lastName + zipCode, or memberId + email).",
+      );
+    }
     const data = await client.postFilter(
       "/advancements/v2/meritBadges/counselors/search",
       body,
